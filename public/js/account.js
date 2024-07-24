@@ -24,25 +24,92 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
-    function getStudySessions() {
-        return JSON.parse(localStorage.getItem(`studySessions_${currentUser.id}`)) || [];
+    async function getStudySessions() {
+        try {
+            const response = await fetch('/api/study/sessions', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                return await response.json();
+            } else {
+                throw new Error('Failed to fetch study sessions');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            return [];
+        }
     }
 
-    function saveStudySessions(sessions) {
-        localStorage.setItem(`studySessions_${currentUser.id}`, JSON.stringify(sessions));
+    async function createStudySession(sessionData) {
+        try {
+            const response = await fetch('/api/study/sessions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(sessionData)
+            });
+            if (response.ok) {
+                return await response.json();
+            } else {
+                throw new Error('Failed to create study session');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            return null;
+        }
     }
 
-    function displayStudySessions() {
-        const sessions = getStudySessions();
+    async function updateStudySession(sessionId, sessionData) {
+        try {
+            const response = await fetch(`/api/study/sessions/${sessionId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(sessionData)
+            });
+            if (response.ok) {
+                return await response.json();
+            } else {
+                throw new Error('Failed to update study session');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            return null;
+        }
+    }
+
+    async function deleteStudySession(sessionId) {
+        try {
+            const response = await fetch(`/api/study/sessions/${sessionId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                return true;
+            } else {
+                throw new Error('Failed to delete study session');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            return false;
+        }
+    }
+
+    async function displayStudySessions() {
+        const sessions = await getStudySessions();
         sessionList.innerHTML = '';
-        sessions.forEach((session, index) => {
+        sessions.forEach((session) => {
             const sessionElement = document.createElement('div');
             sessionElement.classList.add('session-item');
             sessionElement.innerHTML = `
                 <h4>${session.name}</h4>
                 <p>Subject: ${session.subject}</p>
-                <button onclick="editSession(${index})">Edit</button>
-                <button onclick="deleteSession(${index})">Delete</button>
+                <button onclick="editSession('${session._id}')">Edit</button>
+                <button onclick="deleteSession('${session._id}')">Delete</button>
             `;
             sessionList.appendChild(sessionElement);
         });
@@ -55,23 +122,31 @@ document.addEventListener('DOMContentLoaded', () => {
         createSessionModal.style.display = 'block';
     });
 
-    createSessionForm.addEventListener('submit', (e) => {
+    createSessionForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const sessionName = document.getElementById('sessionName').value;
         const subject = document.getElementById('subject').value;
         
-        const sessions = getStudySessions();
         if (createSessionForm.dataset.mode === 'edit') {
-            const index = parseInt(createSessionForm.dataset.index);
-            sessions[index] = { name: sessionName, subject: subject };
+            const sessionId = createSessionForm.dataset.sessionId;
+            const updatedSession = await updateStudySession(sessionId, { name: sessionName, subject });
+            if (updatedSession) {
+                createSessionModal.style.display = 'none';
+                createSessionForm.reset();
+                displayStudySessions();
+            } else {
+                alert('Failed to update study session');
+            }
         } else {
-            sessions.push({ name: sessionName, subject: subject });
+            const newSession = await createStudySession({ name: sessionName, subject });
+            if (newSession) {
+                createSessionModal.style.display = 'none';
+                createSessionForm.reset();
+                displayStudySessions();
+            } else {
+                alert('Failed to create study session');
+            }
         }
-        saveStudySessions(sessions);
-        
-        createSessionModal.style.display = 'none';
-        createSessionForm.reset();
-        displayStudySessions();
     });
 
     logoutBtn.addEventListener('click', () => {
@@ -96,23 +171,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Edit and Delete functions
-    window.editSession = function(index) {
-        const sessions = getStudySessions();
-        const session = sessions[index];
-        document.getElementById('sessionName').value = session.name;
-        document.getElementById('subject').value = session.subject;
-        modalTitle.textContent = 'Edit Study Session';
-        submitSessionBtn.textContent = 'Update Session';
-        createSessionForm.dataset.mode = 'edit';
-        createSessionForm.dataset.index = index;
-        createSessionModal.style.display = 'block';
+    window.editSession = async function(sessionId) {
+        const sessions = await getStudySessions();
+        const session = sessions.find(s => s._id === sessionId);
+        if (session) {
+            document.getElementById('sessionName').value = session.name;
+            document.getElementById('subject').value = session.subject;
+            modalTitle.textContent = 'Edit Study Session';
+            submitSessionBtn.textContent = 'Update Session';
+            createSessionForm.dataset.mode = 'edit';
+            createSessionForm.dataset.sessionId = sessionId;
+            createSessionModal.style.display = 'block';
+        }
     }
 
-    window.deleteSession = function(index) {
-        const sessions = getStudySessions();
-        sessions.splice(index, 1);
-        saveStudySessions(sessions);
-        displayStudySessions();
+    window.deleteSession = async function(sessionId) {
+        if (confirm('Are you sure you want to delete this study session?')) {
+            const deleted = await deleteStudySession(sessionId);
+            if (deleted) {
+                displayStudySessions();
+            } else {
+                alert('Failed to delete study session');
+            }
+        }
     }
 
     displayUserInfo();

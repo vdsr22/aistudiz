@@ -33,7 +33,7 @@ app.use(cookieParser());
 
 // Middleware to authenticate token or allow guest
 const authenticateToken = (req, res, next) => {
-  const token = req.header('Authorization');
+  const token = req.header('Authorization')?.split(' ')[1]; // Extract token from 'Bearer <token>'
   const guestId = req.cookies.guestId;
 
   if (token) {
@@ -52,10 +52,12 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
+// Serve login page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
+// User signup
 app.post('/api/signup', async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -68,6 +70,7 @@ app.post('/api/signup', async (req, res) => {
   }
 });
 
+// User login
 app.post('/api/login', async (req, res) => {
   try {
     const { identifier, password } = req.body;
@@ -85,12 +88,14 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// Guest login
 app.post('/api/guest-login', (req, res) => {
   const guestId = Math.random().toString(36).substring(7);
   res.cookie('guestId', guestId, { maxAge: 4 * 24 * 60 * 60 * 1000, httpOnly: true });
   res.json({ message: 'Guest session started', guestId });
 });
 
+// Get study sessions
 app.get('/api/study/sessions', authenticateToken, async (req, res) => {
   try {
     let sessions;
@@ -107,6 +112,7 @@ app.get('/api/study/sessions', authenticateToken, async (req, res) => {
   }
 });
 
+// Create study session
 app.post('/api/study/sessions', authenticateToken, async (req, res) => {
   try {
     const { name, subject } = req.body;
@@ -125,6 +131,7 @@ app.post('/api/study/sessions', authenticateToken, async (req, res) => {
   }
 });
 
+// Update study session
 app.put('/api/study/sessions/:id', authenticateToken, async (req, res) => {
   try {
     const { name, subject } = req.body;
@@ -154,6 +161,7 @@ app.put('/api/study/sessions/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Delete study session
 app.delete('/api/study/sessions/:id', authenticateToken, async (req, res) => {
   try {
     let session;
