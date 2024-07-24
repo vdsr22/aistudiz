@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudiZ - Dashboard</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/index-styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="header">
+            <h1>StudiZ</h1>
+            <div class="header-buttons">
+                <button id="settingsBtn" class="icon-button"><i class="fas fa-cog"></i></button>
+                <button id="logoutBtn" class="icon-button"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </div>
+        
+        <div id="userInfo"></div>
+
+        <div class="main-content">
+            <h2>Study Sessions</h2>
+            <button id="createSessionBtn">Create New Study Session</button>
+            <div id="sessionList"></div>
+        </div>
+    </div>
+
+    <div id="createSessionModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modalTitle">Create New Study Session</h2>
+            <form id="createSessionForm">
+                <input type="text" id="sessionName" placeholder="Session Name" required>
+                <input type="text" id="subject" placeholder="Subject" required>
+                <button type="submit" id="submitSessionBtn">Create Session</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/account.js"></script>
+</body>
+</html>
