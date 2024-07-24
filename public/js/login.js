@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize EmailJS
     (function() {
-        emailjs.init("azxlenxRR4vHf5C8Z"); // Replace with your actual EmailJS user ID
+        emailjs.init("azxlenxRR4vHf5C8Z"); // Your EmailJS user ID
     })();
 
     loginForm.addEventListener('submit', async (e) => {
@@ -27,11 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             if (response.ok) {
                 localStorage.setItem('token', data.token);
-                localStorage.setItem('currentUser', JSON.stringify({
-                    id: data.user.id,
-                    username: data.user.username,
-                    email: data.user.email
-                }));
+                localStorage.setItem('currentUser', JSON.stringify(data.user));
                 window.location.href = 'index.html';
             } else {
                 alert(data.message);
@@ -46,6 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/guest-login', { method: 'POST' });
             if (response.ok) {
+                const data = await response.json();
+                localStorage.setItem('guestId', data.guestId);
                 window.location.href = 'guest.html';
             } else {
                 alert('Failed to start guest session');

@@ -5,6 +5,11 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 const cookieParser = require('cookie-parser');
+const multer = require('multer');
+const fs = require('fs');
+const util = require('util');
+const readFile = util.promisify(fs.readFile);
+const { Configuration, OpenAIApi } = require("openai");
 
 const app = express();
 
@@ -12,28 +17,32 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTop
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// User model
 const User = mongoose.model('User', new mongoose.Schema({
   username: String,
   email: String,
   password: String
 }));
 
-// Study Session model
 const StudySession = mongoose.model('StudySession', new mongoose.Schema({
   userId: String,
   guestId: String,
   name: String,
-  subject: String
+  subject: String,
+  fileContent: String,
+  summary: String,
+  questions: [{
+    question: String,
+    options: [String],
+    answer: String
+  }]
 }));
 
 app.use(express.json());
 app.use(express.static('public'));
 app.use(cookieParser());
 
-// Middleware to authenticate token or allow guest
 const authenticateToken = (req, res, next) => {
-  const token = req.header('Authorization')?.split(' ')[1]; // Extract token from 'Bearer <token>'
+  const token = req.header('Authorization')?.split(' ')[1];
   const guestId = req.cookies.guestId;
 
   if (token) {
@@ -52,12 +61,12 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
-// Serve login page
+const upload = multer({ dest: 'uploads/' });
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// User signup
 app.post('/api/signup', async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -70,7 +79,6 @@ app.post('/api/signup', async (req, res) => {
   }
 });
 
-// User login
 app.post('/api/login', async (req, res) => {
   try {
     const { identifier, password } = req.body;
@@ -88,14 +96,12 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Guest login
 app.post('/api/guest-login', (req, res) => {
   const guestId = Math.random().toString(36).substring(7);
   res.cookie('guestId', guestId, { maxAge: 4 * 24 * 60 * 60 * 1000, httpOnly: true });
   res.json({ message: 'Guest session started', guestId });
 });
 
-// Get study sessions
 app.get('/api/study/sessions', authenticateToken, async (req, res) => {
   try {
     let sessions;
@@ -112,7 +118,6 @@ app.get('/api/study/sessions', authenticateToken, async (req, res) => {
   }
 });
 
-// Create study session
 app.post('/api/study/sessions', authenticateToken, async (req, res) => {
   try {
     const { name, subject } = req.body;
@@ -131,7 +136,6 @@ app.post('/api/study/sessions', authenticateToken, async (req, res) => {
   }
 });
 
-// Update study session
 app.put('/api/study/sessions/:id', authenticateToken, async (req, res) => {
   try {
     const { name, subject } = req.body;
@@ -161,7 +165,6 @@ app.put('/api/study/sessions/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Delete study session
 app.delete('/api/study/sessions/:id', authenticateToken, async (req, res) => {
   try {
     let session;
@@ -181,6 +184,136 @@ app.delete('/api/study/sessions/:id', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Error deleting study session', error: error.message });
   }
 });
+
+app.post('/api/study/sessions/:id/upload', authenticateToken, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const fileContent = await readFile(req.file.path, 'utf8');
+
+    const aiResponse = await processWithAI(fileContent);
+
+    let session;
+    if (req.user) {
+      session = await StudySession.findOneAndUpdate(
+        { _id: req.params.id, userId: req.user.userId },
+        { 
+          $set: { 
+            fileContent: fileContent,
+            summary: aiResponse.summary,
+            questions: aiResponse.questions
+          }
+        },
+        { new: true }
+      );
+    } else if (req.guestId) {
+      session = await StudySession.findOneAndUpdate(
+        { _id: req.params.id, guestId: req.guestId },
+        { 
+          $set: { 
+            fileContent: fileContent,
+            summary: aiResponse.summary,
+            questions: aiResponse.questions
+          }
+        },
+        { new: true }
+      );
+    }
+
+    if (!session) {
+      return res.status(404).json({ message: 'Study session not found' });
+    }
+
+    fs.unlinkSync(req.file.path);
+
+    res.json({ message: 'File processed successfully', session });
+  } catch (error) {
+    console.error('Error processing file:', error);
+    res.status(500).json({ message: 'Error processing file', error: error.message });
+  }
+});
+
+app.get('/api/study/sessions/:id/summary', authenticateToken, async (req, res) => {
+  try {
+    let session;
+    if (req.user) {
+      session = await StudySession.findOne({ _id: req.params.id, userId: req.user.userId });
+    } else if (req.guestId) {
+      session = await StudySession.findOne({ _id: req.params.id, guestId: req.guestId });
+    }
+    
+    if (!session) {
+      return res.status(404).json({ message: 'Study session not found' });
+    }
+    res.json({ summary: session.summary });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching summary', error: error.message });
+  }
+});
+
+app.get('/api/study/sessions/:id/questions', authenticateToken, async (req, res) => {
+  try {
+    let session;
+    if (req.user) {
+      session = await StudySession.findOne({ _id: req.params.id, userId: req.user.userId });
+    } else if (req.guestId) {
+      session = await StudySession.findOne({ _id: req.params.id, guestId: req.guestId });
+    }
+    
+    if (!session) {
+      return res.status(404).json({ message: 'Study session not found' });
+    }
+    res.json({ questions: session.questions });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching questions', error: error.message });
+  }
+});
+
+async function processWithAI(content) {
+  const configuration = new Configuration({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+  const openai = new OpenAIApi(configuration);
+
+  try {
+    const summaryResponse = await openai.createCompletion({
+      model: "text-davinci-002",
+      prompt: `Summarize the following text:\n\n${content}\n\nSummary:`,
+      max_tokens: 150,
+      n: 1,
+      stop: null,
+      temperature: 0.5,
+    });
+    const summary = summaryResponse.data.choices[0].text.trim();
+
+    const questionsResponse = await openai.createCompletion({
+      model: "text-davinci-002",
+      prompt: `Generate 5 multiple-choice questions based on the following text:\n\n${content}\n\nQuestions:`,
+      max_tokens: 500,
+      n: 1,
+      stop: null,
+      temperature: 0.7,
+    });
+    const questionsText = questionsResponse.data.choices[0].text.trim();
+
+    const questions = questionsText.split('\n\n').map(q => {
+      const [question, ...options] = q.split('\n');
+      const answer = options[options.length - 1].replace('Answer: ', '');
+      return {
+        question: question.replace(/^\d+\.\s*/, ''),
+        options: options.slice(0, -1).map(o => o.replace(/^[A-D]\)\s*/, '')),
+        answer
+      };
+    });
+
+    return { summary, questions };
+  } catch (error) {
+    console.error('Error processing with AI:', error);
+    throw new Error('Failed to process content with AI');
+  }
+}
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

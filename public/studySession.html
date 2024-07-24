@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudiZ - Study Session</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>StudiZ - Study Session</h1>
+        <form id="fileUploadForm">
+            <input type="file" id="fileInput" accept=".txt" required>
+            <button type="submit">Upload and Process</button>
+        </form>
+        <button id="summaryBtn" style="display:none;">View Summary</button>
+        <button id="questionsBtn" style="display:none;">View Questions</button>
+        <div id="contentArea"></div>
+    </div>
+    <script src="js/studySession.js"></script>
+</body>
+</html>
