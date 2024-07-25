@@ -9,7 +9,9 @@ const multer = require('multer');
 const fs = require('fs');
 const util = require('util');
 const readFile = util.promisify(fs.readFile);
-const { Configuration, OpenAIApi } = require("openai");
+const { OpenAI } = require("openai");
+const PDFParser = require('pdf-parse');
+const mammoth = require("mammoth");
 
 const app = express();
 
@@ -191,9 +193,37 @@ app.post('/api/study/sessions/:id/upload', authenticateToken, upload.single('fil
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    const fileContent = await readFile(req.file.path, 'utf8');
+    console.log('File received:', req.file);
 
+    let fileContent;
+    const fileExtension = path.extname(req.file.originalname).toLowerCase();
+
+    console.log('File extension:', fileExtension);
+
+    try {
+      if (fileExtension === '.pdf') {
+        const dataBuffer = fs.readFileSync(req.file.path);
+        const pdfData = await PDFParser(dataBuffer);
+        fileContent = pdfData.text;
+      } else if (fileExtension === '.docx') {
+        const result = await mammoth.extractRawText({ path: req.file.path });
+        fileContent = result.value;
+      } else if (fileExtension === '.doc') {
+        return res.status(400).json({ message: 'DOC files are not supported. Please convert to DOCX.' });
+      } else {
+        // For .txt and other text files
+        fileContent = await readFile(req.file.path, 'utf8');
+      }
+
+      console.log('File content extracted successfully');
+    } catch (fileError) {
+      console.error('Error reading file:', fileError);
+      return res.status(500).json({ message: 'Error reading file', error: fileError.message });
+    }
+
+    console.log('Sending content to AI for processing');
     const aiResponse = await processWithAI(fileContent);
+    console.log('AI processing complete');
 
     let session;
     if (req.user) {
@@ -225,6 +255,8 @@ app.post('/api/study/sessions/:id/upload', authenticateToken, upload.single('fil
     if (!session) {
       return res.status(404).json({ message: 'Study session not found' });
     }
+
+    console.log('Study session updated successfully');
 
     fs.unlinkSync(req.file.path);
 
@@ -272,38 +304,41 @@ app.get('/api/study/sessions/:id/questions', authenticateToken, async (req, res)
 });
 
 async function processWithAI(content) {
-  const configuration = new Configuration({
+  const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
   });
-  const openai = new OpenAIApi(configuration);
 
   try {
-    const summaryResponse = await openai.createCompletion({
-      model: "text-davinci-002",
-      prompt: `Summarize the following text:\n\n${content}\n\nSummary:`,
+    const summaryResponse = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {role: "system", content: "You are a helpful assistant that summarizes text."},
+        {role: "user", content: `Summarize the following text:\n\n${content}`}
+      ],
       max_tokens: 150,
-      n: 1,
-      stop: null,
       temperature: 0.5,
     });
-    const summary = summaryResponse.data.choices[0].text.trim();
+    const summary = summaryResponse.choices[0].message.content.trim();
 
-    const questionsResponse = await openai.createCompletion({
-      model: "text-davinci-002",
-      prompt: `Generate 5 multiple-choice questions based on the following text:\n\n${content}\n\nQuestions:`,
+    const questionsResponse = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {role: "system", content: "You are a helpful assistant that generates multiple-choice questions."},
+        {role: "user", content: `Generate 5 multiple-choice questions based on the following text:\n\n${content}\n\nFormat each question as follows:\nQuestion: [Question text]\nA) [Option A]\nB) [Option B]\nC) [Option C]\nD) [Option D]\nAnswer: [Correct option letter]`}
+      ],
       max_tokens: 500,
-      n: 1,
-      stop: null,
       temperature: 0.7,
     });
-    const questionsText = questionsResponse.data.choices[0].text.trim();
+    const questionsText = questionsResponse.choices[0].message.content.trim();
 
     const questions = questionsText.split('\n\n').map(q => {
-      const [question, ...options] = q.split('\n');
-      const answer = options[options.length - 1].replace('Answer: ', '');
+      const [questionLine, ...rest] = q.split('\n');
+      const question = questionLine.replace('Question: ', '');
+      const options = rest.slice(0, -1).map(o => o.slice(3));
+      const answer = rest[rest.length - 1].replace('Answer: ', '');
       return {
-        question: question.replace(/^\d+\.\s*/, ''),
-        options: options.slice(0, -1).map(o => o.replace(/^[A-D]\)\s*/, '')),
+        question,
+        options,
         answer
       };
     });
@@ -311,7 +346,15 @@ async function processWithAI(content) {
     return { summary, questions };
   } catch (error) {
     console.error('Error processing with AI:', error);
-    throw new Error('Failed to process content with AI');
+    // Fallback mechanism
+    return {
+      summary: "Summary generation failed due to API limitations. Please try again later.",
+      questions: [{
+        question: "Sample question (API limitation)",
+        options: ["Option A", "Option B", "Option C", "Option D"],
+        answer: "A"
+      }]
+    };
   }
 }
 
