@@ -1,0 +1,55 @@
+studiz/
+│
+├── public/
+│   ├── css/
+│   │   ├── styles.css
+│   │   └── index-styles.css
+│   │
+│   ├── js/
+│   │   ├── login.js
+│   │   ├── signup.js
+│   │   ├── account.js
+│   │   ├── guest.js
+│   │   └── studySession.js
+│   │
+│   ├── index.html
+│   ├── login.html
+│   ├── signup.html
+│   ├── guest.html
+│   └── studySession.html
+│
+├── uploads/  (temporary folder for file uploads)
+│
+├── node_modules/
+│
+├── server.js
+├── package.json
+├── package-lock.json
+├── .env
+└── .gitignore
+
+
+
+Key components:
+
+server.js: The main server file containing all the backend logic, API routes, and database interactions.
+public/: Directory for all client-side files.
+
+css/: Contains stylesheets.
+js/: Contains client-side JavaScript files.
+HTML files for different pages.
+
+
+uploads/: Temporary directory for storing uploaded files before processing.
+node_modules/: Contains all npm packages (not tracked in git).
+package.json and package-lock.json: Define project dependencies and scripts.
+.env: Contains environment variables (not tracked in git).
+.gitignore: Specifies intentionally untracked files to ignore.
+
+New or updated files:
+
+public/js/studySession.js: Handles the logic for the study session page, including file upload and displaying summaries and questions.
+public/studySession.html: The HTML for the study session page where users can upload files and view processed content.
+public/css/index-styles.css: Additional styles specific to the index/dashboard page.
+
+This structure organizes your project into clear sections for server-side code, client-side code, and configuration files. The new additions mainly focus on enhancing the study session functionality, allowing for file uploads, AI processing, and displaying the results.
