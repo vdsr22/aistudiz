@@ -15,15 +15,37 @@ const mammoth = require("mammoth");
 
 const app = express();
 
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+// Improved MongoDB connection with retry logic
+const connectWithRetry = () => {
+  mongoose.connect(process.env.MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 5000
+  })
   .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    console.log('Retrying connection in 5 seconds...');
+    setTimeout(connectWithRetry, 5000);
+  });
+};
 
-const User = mongoose.model('User', new mongoose.Schema({
-  username: String,
-  email: String,
-  password: String
-}));
+connectWithRetry();
+
+const userSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true }
+});
+
+userSchema.pre('save', async function(next) {
+  if (this.isModified('password')) {
+    this.password = await bcrypt.hash(this.password, 10);
+  }
+  next();
+});
+
+const User = mongoose.model('User', userSchema);
 
 const StudySession = mongoose.model('StudySession', new mongoose.Schema({
   userId: String,
@@ -43,6 +65,7 @@ app.use(express.json());
 app.use(express.static('public'));
 app.use(cookieParser());
 
+
 const authenticateToken = (req, res, next) => {
   const token = req.header('Authorization')?.split(' ')[1];
   const guestId = req.cookies.guestId;
@@ -53,6 +76,7 @@ const authenticateToken = (req, res, next) => {
       req.user = { userId: verified.userId };
       next();
     } catch (error) {
+      console.error('Token verification error:', error);
       return res.status(403).json({ message: 'Invalid token' });
     }
   } else if (guestId) {
@@ -72,11 +96,15 @@ app.get('/', (req, res) => {
 app.post('/api/signup', async (req, res) => {
   try {
     const { username, email, password } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ username, email, password: hashedPassword });
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Username or email already exists' });
+    }
+    const user = new User({ username, email, password });
     await user.save();
     res.status(201).json({ message: 'User created successfully' });
   } catch (error) {
+    console.error('Signup error:', error);
     res.status(500).json({ message: 'Error creating user', error: error.message });
   }
 });
@@ -87,13 +115,17 @@ app.post('/api/login', async (req, res) => {
     const user = await User.findOne({
       $or: [{ email: identifier }, { username: identifier }]
     });
-    if (user && await bcrypt.compare(password, user.password)) {
-      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-      res.json({ token, user: { id: user._id, username: user.username, email: user.email } });
-    } else {
-      res.status(401).json({ message: 'Invalid credentials' });
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
     }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid password' });
+    }
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    res.json({ token, user: { id: user._id, username: user.username, email: user.email } });
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ message: 'Error logging in', error: error.message });
   }
 });
@@ -116,6 +148,7 @@ app.get('/api/study/sessions', authenticateToken, async (req, res) => {
     }
     res.json(sessions);
   } catch (error) {
+    console.error('Error fetching study sessions:', error);
     res.status(500).json({ message: 'Error fetching study sessions', error: error.message });
   }
 });
@@ -134,6 +167,7 @@ app.post('/api/study/sessions', authenticateToken, async (req, res) => {
     await session.save();
     res.status(201).json(session);
   } catch (error) {
+    console.error('Error creating study session:', error);
     res.status(500).json({ message: 'Error creating study session', error: error.message });
   }
 });
@@ -163,6 +197,7 @@ app.put('/api/study/sessions/:id', authenticateToken, async (req, res) => {
     }
     res.json(session);
   } catch (error) {
+    console.error('Error updating study session:', error);
     res.status(500).json({ message: 'Error updating study session', error: error.message });
   }
 });
@@ -183,6 +218,7 @@ app.delete('/api/study/sessions/:id', authenticateToken, async (req, res) => {
     }
     res.json({ message: 'Study session deleted successfully' });
   } catch (error) {
+    console.error('Error deleting study session:', error);
     res.status(500).json({ message: 'Error deleting study session', error: error.message });
   }
 });
@@ -277,6 +313,7 @@ app.get('/api/study/sessions/:id/summary', authenticateToken, async (req, res) =
     }
     res.json({ summary: session.summary });
   } catch (error) {
+    console.error('Error fetching summary:', error);
     res.status(500).json({ message: 'Error fetching summary', error: error.message });
   }
 });
@@ -298,6 +335,7 @@ app.get('/api/study/sessions/:id/questions', authenticateToken, async (req, res)
     }
     res.json({ questions: session.questions });
   } catch (error) {
+    console.error('Error fetching questions:', error);
     res.status(500).json({ message: 'Error fetching questions', error: error.message });
   }
 });
