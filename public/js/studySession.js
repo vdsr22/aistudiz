@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const fileUploadForm = document.getElementById('fileUploadForm');
     const fileInput = document.getElementById('fileInput');
+    const uploadButton = document.getElementById('uploadButton');
     const summaryBtn = document.getElementById('summaryBtn');
     const questionsBtn = document.getElementById('questionsBtn');
     const contentArea = document.getElementById('contentArea');
@@ -8,6 +9,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const sessionId = new URLSearchParams(window.location.search).get('id');
     const token = localStorage.getItem('token');
     const guestId = localStorage.getItem('guestId');
+
+    async function checkExistingData() {
+        try {
+            const response = await fetch(`/api/study/sessions/${sessionId}/data`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.fileName) {
+                    fileInput.value = ''; // Clear the file input
+                    const fileNameSpan = document.createElement('span');
+                    fileNameSpan.textContent = `File: ${data.fileName}`;
+                    fileUploadForm.insertBefore(fileNameSpan, uploadButton);
+                    uploadButton.textContent = 'Replace File';
+                    summaryBtn.style.display = 'inline-block';
+                    questionsBtn.style.display = 'inline-block';
+                }
+            }
+        } catch (error) {
+            console.error('Error checking existing data:', error);
+        }
+    }
+
+    checkExistingData();
 
     fileUploadForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -26,6 +52,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('File uploaded and processed successfully');
                 summaryBtn.style.display = 'inline-block';
                 questionsBtn.style.display = 'inline-block';
+                // Update the file name display
+                const fileNameSpan = document.querySelector('span') || document.createElement('span');
+                fileNameSpan.textContent = `File: ${fileInput.files[0].name}`;
+                if (!document.querySelector('span')) {
+                    fileUploadForm.insertBefore(fileNameSpan, uploadButton);
+                }
+                uploadButton.textContent = 'Replace File';
             } else {
                 const data = await response.json();
                 alert(data.message);

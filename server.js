@@ -6,23 +6,29 @@ const jwt = require('jsonwebtoken');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const multer = require('multer');
-const fs = require('fs');
-const util = require('util');
-const readFile = util.promisify(fs.readFile);
+const { GridFSBucket } = require('mongodb');
+const crypto = require('crypto');
+const stream = require('stream');
 const { OpenAI } = require("openai");
 const PDFParser = require('pdf-parse');
 const mammoth = require("mammoth");
 
 const app = express();
 
-// Improved MongoDB connection with retry logic
+let gfs;
+
 const connectWithRetry = () => {
   mongoose.connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-    serverSelectionTimeoutMS: 5000
+    serverSelectionTimeoutMS: 10000
   })
-  .then(() => console.log('Connected to MongoDB'))
+  .then(() => {
+    console.log('Connected to MongoDB');
+    gfs = new GridFSBucket(mongoose.connection.db, {
+      bucketName: 'uploads'
+    });
+  })
   .catch(err => {
     console.error('MongoDB connection error:', err);
     console.log('Retrying connection in 5 seconds...');
@@ -32,39 +38,12 @@ const connectWithRetry = () => {
 
 connectWithRetry();
 
-const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true }
-});
-
-userSchema.pre('save', async function(next) {
-  if (this.isModified('password')) {
-    this.password = await bcrypt.hash(this.password, 10);
-  }
-  next();
-});
-
-const User = mongoose.model('User', userSchema);
-
-const StudySession = mongoose.model('StudySession', new mongoose.Schema({
-  userId: String,
-  guestId: String,
-  name: String,
-  subject: String,
-  fileContent: String,
-  summary: String,
-  questions: [{
-    question: String,
-    options: [String],
-    answer: String
-  }]
-}));
+const User = require('./models/User');
+const StudySession = require('./models/StudySession');
 
 app.use(express.json());
 app.use(express.static('public'));
 app.use(cookieParser());
-
 
 const authenticateToken = (req, res, next) => {
   const token = req.header('Authorization')?.split(' ')[1];
@@ -87,7 +66,8 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
-const upload = multer({ dest: 'uploads/' });
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
@@ -112,17 +92,25 @@ app.post('/api/signup', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   try {
     const { identifier, password } = req.body;
+    console.log('Login attempt for:', identifier);
+
     const user = await User.findOne({
       $or: [{ email: identifier }, { username: identifier }]
     });
+
     if (!user) {
+      console.log('User not found:', identifier);
       return res.status(401).json({ message: 'User not found' });
     }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      console.log('Invalid password for user:', identifier);
       return res.status(401).json({ message: 'Invalid password' });
     }
+
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    console.log('Login successful for user:', identifier);
     res.json({ token, user: { id: user._id, username: user.username, email: user.email } });
   } catch (error) {
     console.error('Login error:', error);
@@ -146,6 +134,7 @@ app.get('/api/study/sessions', authenticateToken, async (req, res) => {
     } else {
       return res.status(401).json({ message: 'Unauthorized' });
     }
+    console.log('Fetched sessions:', sessions);
     res.json(sessions);
   } catch (error) {
     console.error('Error fetching study sessions:', error);
@@ -165,6 +154,7 @@ app.post('/api/study/sessions', authenticateToken, async (req, res) => {
       return res.status(401).json({ message: 'Unauthorized' });
     }
     await session.save();
+    console.log('Created new session:', session);
     res.status(201).json(session);
   } catch (error) {
     console.error('Error creating study session:', error);
@@ -216,7 +206,12 @@ app.delete('/api/study/sessions/:id', authenticateToken, async (req, res) => {
     if (!session) {
       return res.status(404).json({ message: 'Study session not found' });
     }
-    res.json({ message: 'Study session deleted successfully' });
+
+    if (session.fileId) {
+      await gfs.delete(new mongoose.Types.ObjectId(session.fileId));
+    }
+
+    res.json({ message: 'Study session and associated data deleted successfully' });
   } catch (error) {
     console.error('Error deleting study session:', error);
     res.status(500).json({ message: 'Error deleting study session', error: error.message });
@@ -229,70 +224,115 @@ app.post('/api/study/sessions/:id/upload', authenticateToken, upload.single('fil
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    console.log('File received:', req.file);
+    console.log('File received:', req.file.originalname);
 
-    let fileContent;
-    const fileExtension = path.extname(req.file.originalname).toLowerCase();
+    const filename = `${crypto.randomBytes(16).toString('hex')}${path.extname(req.file.originalname)}`;
+    const uploadStream = gfs.openUploadStream(filename, {
+      contentType: req.file.mimetype
+    });
 
-    console.log('File extension:', fileExtension);
+    const bufferStream = new stream.PassThrough();
+    bufferStream.end(req.file.buffer);
+    bufferStream.pipe(uploadStream);
 
-    try {
-      if (fileExtension === '.pdf') {
-        const dataBuffer = fs.readFileSync(req.file.path);
-        const pdfData = await PDFParser(dataBuffer);
-        fileContent = pdfData.text;
-      } else if (fileExtension === '.docx') {
-        const result = await mammoth.extractRawText({ path: req.file.path });
-        fileContent = result.value;
-      } else if (fileExtension === '.doc') {
-        return res.status(400).json({ message: 'DOC files are not supported. Please convert to DOCX.' });
-      } else {
-        fileContent = await readFile(req.file.path, 'utf8');
+    uploadStream.on('finish', async () => {
+      const fileId = uploadStream.id;
+      let fileContent;
+      const fileExtension = path.extname(req.file.originalname).toLowerCase();
+
+      try {
+        const fileBuffer = req.file.buffer;
+        
+        if (fileExtension === '.pdf') {
+          const pdfData = await PDFParser(fileBuffer);
+          fileContent = pdfData.text;
+        } else if (fileExtension === '.docx') {
+          const result = await mammoth.extractRawText({ buffer: fileBuffer });
+          fileContent = result.value;
+        } else if (fileExtension === '.doc') {
+          return res.status(400).json({ message: 'DOC files are not supported. Please convert to DOCX.' });
+        } else {
+          fileContent = fileBuffer.toString('utf8');
+        }
+
+        console.log('File content extracted successfully');
+      } catch (fileError) {
+        console.error('Error reading file:', fileError);
+        return res.status(500).json({ message: 'Error reading file', error: fileError.message });
       }
 
-      console.log('File content extracted successfully');
-    } catch (fileError) {
-      console.error('Error reading file:', fileError);
-      return res.status(500).json({ message: 'Error reading file', error: fileError.message });
-    }
+      console.log('Sending content to AI for processing');
+      const aiResponse = await processWithAI(fileContent);
+      console.log('AI processing complete');
 
-    console.log('Sending content to AI for processing');
-    const aiResponse = await processWithAI(fileContent);
-    console.log('AI processing complete');
+      let session;
+      const updateData = { 
+        fileContent: fileContent,
+        summary: aiResponse.summary,
+        questions: aiResponse.questions,
+        fileId: fileId,
+        processedData: JSON.stringify(aiResponse),
+        fileName: req.file.originalname
+      };
 
-    let session;
-    const updateData = { 
-      fileContent: fileContent,
-      summary: aiResponse.summary,
-      questions: aiResponse.questions
-    };
+      if (req.user) {
+        session = await StudySession.findOneAndUpdate(
+          { _id: req.params.id, userId: req.user.userId },
+          { $set: updateData },
+          { new: true }
+        );
+      } else if (req.guestId) {
+        session = await StudySession.findOneAndUpdate(
+          { _id: req.params.id, guestId: req.guestId },
+          { $set: updateData },
+          { new: true }
+        );
+      }
 
-    if (req.user) {
-      session = await StudySession.findOneAndUpdate(
-        { _id: req.params.id, userId: req.user.userId },
-        { $set: updateData },
-        { new: true }
-      );
-    } else if (req.guestId) {
-      session = await StudySession.findOneAndUpdate(
-        { _id: req.params.id, guestId: req.guestId },
-        { $set: updateData },
-        { new: true }
-      );
-    }
+      if (!session) {
+        return res.status(404).json({ message: 'Study session not found' });
+      }
 
-    if (!session) {
-      return res.status(404).json({ message: 'Study session not found' });
-    }
+      console.log('Study session updated successfully');
+      res.json({ message: 'File processed successfully', session });
+    });
 
-    console.log('Study session updated successfully');
-
-    fs.unlinkSync(req.file.path);
-
-    res.json({ message: 'File processed successfully', session });
+    uploadStream.on('error', (error) => {
+      console.error('Error uploading file:', error);
+      res.status(500).json({ message: 'Error uploading file', error: error.message });
+    });
   } catch (error) {
     console.error('Error processing file:', error);
     res.status(500).json({ message: 'Error processing file', error: error.message });
+  }
+});
+
+app.get('/api/study/sessions/:id/data', authenticateToken, async (req, res) => {
+  try {
+    let session;
+    if (req.user) {
+      session = await StudySession.findOne({ _id: req.params.id, userId: req.user.userId });
+    } else if (req.guestId) {
+      session = await StudySession.findOne({ _id: req.params.id, guestId: req.guestId });
+    }
+    
+    if (!session) {
+      return res.status(404).json({ message: 'Study session not found' });
+    }
+    
+    if (!session.fileId) {
+      return res.status(404).json({ message: 'No file uploaded for this session' });
+    }
+    
+    res.json({
+      fileName: session.fileName,
+      summary: session.summary,
+      questions: session.questions,
+      processedData: session.processedData
+    });
+  } catch (error) {
+    console.error('Error fetching session data:', error);
+    res.status(500).json({ message: 'Error fetching session data', error: error.message });
   }
 });
 
@@ -364,7 +404,7 @@ async function processWithAI(content) {
         {role: "user", content: `Generate 5 multiple-choice questions based on the following text:\n\n${content}\n\nFormat each question as follows:\nQuestion: [Question text]\nA) [Option A]\nB) [Option B]\nC) [Option C]\nD) [Option D]\nAnswer: [Correct option letter]`}
       ],
       max_tokens: 500,
-      temperature: 0.7,
+      temperature: 0.3,
     });
     const questionsText = questionsResponse.choices[0].message.content.trim();
 
@@ -392,6 +432,16 @@ async function processWithAI(content) {
       }]
     };
   }
+}
+
+async function readFileFromGridFS(fileId) {
+  return new Promise((resolve, reject) => {
+    const downloadStream = gfs.openDownloadStream(new mongoose.Types.ObjectId(fileId));
+    const chunks = [];
+    downloadStream.on('data', (chunk) => chunks.push(chunk));
+    downloadStream.on('error', reject);
+    downloadStream.on('end', () => resolve(Buffer.concat(chunks)));
+  });
 }
 
 const PORT = process.env.PORT || 3000;

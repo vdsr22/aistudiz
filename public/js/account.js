@@ -30,7 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (response.ok) {
-                return await response.json();
+                const sessions = await response.json();
+                console.log('Fetched sessions:', sessions);
+                return sessions;
             } else {
                 throw new Error('Failed to fetch study sessions');
             }
@@ -134,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (updatedSession) {
                 createSessionModal.style.display = 'none';
                 createSessionForm.reset();
-                displayStudySessions();
+                await displayStudySessions();
             } else {
                 alert('Failed to update study session');
             }
@@ -143,7 +145,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (newSession) {
                 createSessionModal.style.display = 'none';
                 createSessionForm.reset();
-                displayStudySessions();
+                await displayStudySessions();
+                console.log('New session created and displayed');
             } else {
                 alert('Failed to create study session');
             }
@@ -164,14 +167,12 @@ document.addEventListener('DOMContentLoaded', () => {
         createSessionModal.style.display = 'none';
     });
 
-    // Close modal when clicking outside
     window.onclick = function(event) {
         if (event.target === createSessionModal) {
             createSessionModal.style.display = "none";
         }
     }
 
-    // Edit and Delete functions
     window.editSession = async function(sessionId) {
         const sessions = await getStudySessions();
         const session = sessions.find(s => s._id === sessionId);
@@ -190,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (confirm('Are you sure you want to delete this study session?')) {
             const deleted = await deleteStudySession(sessionId);
             if (deleted) {
-                displayStudySessions();
+                await displayStudySessions();
             } else {
                 alert('Failed to delete study session');
             }
