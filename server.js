@@ -69,7 +69,10 @@ const authenticateToken = (req, res, next) => {
 };
 
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
@@ -269,10 +272,9 @@ app.post('/api/study/sessions/:id/upload', authenticateToken, upload.single('fil
 
       let session;
       const updateData = { 
-        fileContent: fileContent,
+        fileId: fileId,
         summary: aiResponse.summary,
         questions: aiResponse.questions,
-        fileId: fileId,
         processedData: JSON.stringify(aiResponse),
         fileName: req.file.originalname
       };
@@ -395,7 +397,7 @@ async function processWithAI(content) {
         {role: "user", content: `Summarize the following text:\n\n${content}`}
       ],
       max_tokens: 150,
-      temperature: 0.5,
+      temperature: 0.3,
     });
     const summary = summaryResponse.choices[0].message.content.trim();
 

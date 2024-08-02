@@ -39,8 +39,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     fileUploadForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const file = fileInput.files[0];
+        if (file.size > 5 * 1024 * 1024) {
+            alert('File size exceeds 5MB limit. Please choose a smaller file.');
+            return;
+        }
         const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
+        formData.append('file', file);
 
         try {
             const response = await fetch(`/api/study/sessions/${sessionId}/upload`, {
@@ -56,14 +61,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 questionsBtn.style.display = 'inline-block';
                 // Update the file name display
                 const fileNameSpan = document.querySelector('span') || document.createElement('span');
-                fileNameSpan.textContent = `File: ${fileInput.files[0].name}`;
+                fileNameSpan.textContent = `File: ${file.name}`;
                 if (!document.querySelector('span')) {
                     fileUploadForm.insertBefore(fileNameSpan, uploadButton);
                 }
                 uploadButton.textContent = 'Replace File';
             } else {
                 const data = await response.json();
-                alert(data.message);
+                alert(data.message || 'An error occurred while uploading the file');
             }
         } catch (error) {
             console.error('Error:', error);
