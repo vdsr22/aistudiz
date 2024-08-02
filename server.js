@@ -12,6 +12,7 @@ const stream = require('stream');
 const { OpenAI } = require("openai");
 const PDFParser = require('pdf-parse');
 const mammoth = require("mammoth");
+const cors = require('cors');
 
 const app = express();
 
@@ -44,6 +45,7 @@ const StudySession = require('./models/StudySession');
 app.use(express.json());
 app.use(express.static('public'));
 app.use(cookieParser());
+app.use(cors());
 
 const authenticateToken = (req, res, next) => {
   const token = req.header('Authorization')?.split(' ')[1];

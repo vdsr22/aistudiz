@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     summaryBtn.style.display = 'inline-block';
                     questionsBtn.style.display = 'inline-block';
                 }
+            } else {
+                console.error('Error checking existing data:', await response.text());
             }
         } catch (error) {
             console.error('Error checking existing data:', error);
