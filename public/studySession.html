@@ -5,18 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StudiZ - Study Session</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/index-styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 </head>
 <body>
-    <div class="container">
-        <h1>StudiZ - Study Session</h1>
-        <form id="fileUploadForm">
-            <input type="file" id="fileInput" name="file">
-            <button type="submit" id="uploadButton">Upload and Process</button>
-        </form>
-        <button id="summaryBtn" style="display:none;">View Summary</button>
-        <button id="questionsBtn" style="display:none;">View Questions</button>
-        <div id="contentArea"></div>
+    <div class="dashboard-container">
+        <div class="header">
+            <h1>StudiZ</h1>
+            <div class="header-buttons">
+                <button id="backBtn" class="icon-button"><i class="fas fa-arrow-left"></i></button>
+                <button id="settingsBtn" class="icon-button"><i class="fas fa-cog"></i></button>
+                <button id="logoutBtn" class="icon-button"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </div>
+        
+        <div id="userInfo"></div>
+
+        <div class="main-content">
+            <h2>Study Session</h2>
+            <form id="fileUploadForm">
+                <div class="file-upload-section">
+                    <input type="file" id="fileInput" name="file" accept=".txt,.pdf,.doc,.docx">
+                    <span id="fileName"></span>
+                </div>
+                <div class="button-row">
+                    <button type="button" id="replaceFileBtn">Replace File</button>
+                    <button type="button" id="summaryBtn">View Summary</button>
+                    <button type="button" id="questionsBtn">View Questions</button>
+                </div>
+            </form>
+            <div id="contentArea"></div>
+        </div>
     </div>
+
     <script src="js/studySession.js"></script>
+    <script src="js/account.js"></script>
 </body>
 </html>

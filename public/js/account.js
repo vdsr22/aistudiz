@@ -108,11 +108,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const sessionElement = document.createElement('div');
             sessionElement.classList.add('session-item');
             sessionElement.innerHTML = `
-                <h4>${session.name}</h4>
-                <p>Subject: ${session.subject}</p>
-                <button onclick="editSession('${session._id}')">Edit</button>
-                <button onclick="deleteSession('${session._id}')">Delete</button>
-                <a href="studySession.html?id=${session._id}">Open Session</a>
+              <h4>${session.name}</h4>
+              <p>Subject: ${session.subject}</p>
+              <a href="studySession.html?id=${session._id}">Open Session</a>
+              <button onclick="editSession('${session._id}')">Edit</button>
+              <button onclick="deleteSession('${session._id}')">Delete</button>
             `;
             sessionList.appendChild(sessionElement);
         });

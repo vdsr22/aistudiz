@@ -1,14 +1,34 @@
 document.addEventListener('DOMContentLoaded', () => {
     const fileUploadForm = document.getElementById('fileUploadForm');
     const fileInput = document.getElementById('fileInput');
-    const uploadButton = document.getElementById('uploadButton');
+    const fileName = document.getElementById('fileName');
+    const replaceFileBtn = document.getElementById('replaceFileBtn');
     const summaryBtn = document.getElementById('summaryBtn');
     const questionsBtn = document.getElementById('questionsBtn');
     const contentArea = document.getElementById('contentArea');
+    const backBtn = document.getElementById('backBtn');
+    const userInfo = document.getElementById('userInfo');
 
     const sessionId = new URLSearchParams(window.location.search).get('id');
     const token = localStorage.getItem('token');
     const guestId = localStorage.getItem('guestId');
+
+    // Add functionality for the back button
+    backBtn.addEventListener('click', () => {
+        window.location.href = 'index.html';
+    });
+
+    // Display user info
+    function displayUserInfo() {
+        const username = localStorage.getItem('username');
+        if (username) {
+            userInfo.innerHTML = `<p>Welcome, ${username}</p>`;
+        } else if (guestId) {
+            userInfo.innerHTML = `<p>Guest User</p>`;
+        }
+    }
+
+    displayUserInfo();
 
     async function checkExistingData() {
         try {
@@ -20,10 +40,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
                 if (data.fileName) {
                     fileInput.value = ''; // Clear the file input
-                    const fileNameSpan = document.createElement('span');
-                    fileNameSpan.textContent = `File: ${data.fileName}`;
-                    fileUploadForm.insertBefore(fileNameSpan, uploadButton);
-                    uploadButton.textContent = 'Replace File';
+                    fileName.textContent = `File: ${data.fileName}`;
+                    replaceFileBtn.textContent = 'Replace File';
                     summaryBtn.style.display = 'inline-block';
                     questionsBtn.style.display = 'inline-block';
                 }
@@ -37,9 +55,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     checkExistingData();
 
-    fileUploadForm.addEventListener('submit', async (e) => {
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            fileName.textContent = `File: ${file.name}`;
+            replaceFileBtn.textContent = 'Upload File';
+        } else {
+            fileName.textContent = '';
+            replaceFileBtn.textContent = 'Replace File';
+        }
+    });
+
+    replaceFileBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         const file = fileInput.files[0];
+        if (!file) {
+            alert('Please select a file first.');
+            return;
+        }
         if (file.size > 5 * 1024 * 1024) {
             alert('File size exceeds 5MB limit. Please choose a smaller file.');
             return;
@@ -59,13 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('File uploaded and processed successfully');
                 summaryBtn.style.display = 'inline-block';
                 questionsBtn.style.display = 'inline-block';
-                // Update the file name display
-                const fileNameSpan = document.querySelector('span') || document.createElement('span');
-                fileNameSpan.textContent = `File: ${file.name}`;
-                if (!document.querySelector('span')) {
-                    fileUploadForm.insertBefore(fileNameSpan, uploadButton);
-                }
-                uploadButton.textContent = 'Replace File';
+                replaceFileBtn.textContent = 'Replace File';
+                fileName.textContent = `File: ${file.name}`;
             } else {
                 const data = await response.json();
                 alert(data.message || 'An error occurred while uploading the file');
@@ -123,6 +151,15 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error:', error);
             alert('An error occurred while fetching the questions');
         }
+    });
+
+    // Add logout functionality
+    const logoutBtn = document.getElementById('logoutBtn');
+    logoutBtn.addEventListener('click', () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        localStorage.removeItem('guestId');
+        window.location.href = 'index.html';
     });
 });
 

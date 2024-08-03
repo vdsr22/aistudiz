@@ -2,7 +2,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh;
     margin: 0;
     background-color: #f0f2f5;
 }
@@ -12,11 +12,12 @@ body {
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    width: calc(100% - 10px);
-    max-width: 600px;
-    height: calc(100vh - 10px);
+    width: 100%;
+    max-width: 800px;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
+    margin: 0 auto;
 }
 
 .header {
@@ -24,6 +25,7 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    flex-wrap: wrap;
 }
 
 .header h1 {
@@ -34,6 +36,8 @@ body {
 
 .header-buttons {
     display: flex;
+    flex-wrap: wrap;
+    margin-top: 10px;
 }
 
 .icon-button {
@@ -43,11 +47,23 @@ body {
     color: #1877f2;
     cursor: pointer;
     margin-left: 10px;
+    padding: 5px;
 }
 
 #userInfo {
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 0px;
+    margin-top: 0px;
+}
+
+#userInfo p {
+    margin-bottom: 4px;
+    margin-top: 0px;
+}
+
+#userInfo p:last-child {
+    margin-bottom: 0px;
+    margin-top: 0px;
 }
 
 .main-content {
@@ -55,16 +71,19 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
+    margin-bottom: 0px;
+    margin-top: 0;
 }
 
 .main-content h2 {
     color: #1c1e21;
     font-size: 24px;
-    margin-bottom: 20px;
+    margin-bottom: 0px;
+    margin-top: 0;
 }
 
 #createSessionBtn {
-    width: 80%;
+    width: 40%;
     padding: 12px;
     margin-bottom: 20px;
     border: none;
@@ -81,8 +100,46 @@ body {
 }
 
 #sessionList {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     width: 100%;
     overflow-y: auto;
+}
+
+.session-item {
+    background-color: #f9f9f9;
+    border: 1px solid #dadde1;
+    border-radius: 5px;
+    padding: 15px;
+    margin: 10px;
+    width: calc(33.33% - 20px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.session-item h4 {
+    margin: 0 0 10px 0;
+    color: #1877f2;
+}
+
+.session-item p {
+    margin: 5px 0;
+}
+
+.session-item button, .session-item a {
+    background-color: #1877f2;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    margin-right: 5px;
+    cursor: pointer;
+    border-radius: 3px;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.session-item button:hover, .session-item a:hover {
+    background-color: #166fe5;
 }
 
 .modal {
@@ -133,12 +190,6 @@ body {
     background-color: #166fe5;
 }
 
-@media (max-width: 480px) {
-    .dashboard-container {
-        width: calc(100% - 10px);
-        height: calc(100vh - 10px);
-    }
-}
 .close {
     color: #aaa;
     float: right;
@@ -152,4 +203,110 @@ body {
     color: #000;
     text-decoration: none;
     cursor: pointer;
+}
+
+/* New styles for study session page */
+#fileUploadForm {
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+#fileInput {
+    margin-bottom: 10px;
+    width: 100%;
+}
+
+#uploadButton, #summaryBtn, #questionsBtn {
+    background-color: #1877f2;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    margin-right: 10px;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+#uploadButton:hover, #summaryBtn:hover, #questionsBtn:hover {
+    background-color: #166fe5;
+}
+
+#contentArea {
+    width: 100%;
+    margin-top: 20px;
+}
+
+@media (max-width: 480px) {
+    .dashboard-container {
+        width: 100%;
+        min-height: 100vh;
+        border-radius: 0;
+    }
+    
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .header-buttons {
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: 15px;
+    }
+
+    .session-item {
+        width: calc(100% - 20px);
+    }
+
+    #createSessionBtn {
+        width: 100%;
+    }
+}
+
+.button-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    width: 100%;
+}
+
+.button-row button {
+    flex: 1;
+    margin: 0 5px;
+    padding: 10px;
+    background-color: #1877f2;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.button-row button:hover {
+    background-color: #166fe5;
+}
+
+#replaceFileBtn, #summaryBtn, #questionsBtn {
+    display: block;
+}
+
+@media (max-width: 480px) {
+    .button-row {
+        flex-direction: column;
+    }
+
+    .button-row button {
+        margin: 5px 0;
+    }
+}
+
+.file-upload-section {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+}
+
+#fileName {
+    margin-top: 5px;
+    font-style: italic;
+    color: #666;
 }
