@@ -151,18 +151,51 @@ body {
     width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: rgba(0,0,0,0.4);
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 .modal-content {
-    background-color: #fefefe;
+    background-color: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
     margin: 15% auto;
     padding: 20px;
-    border: 1px solid #888;
     width: 80%;
     max-width: 400px;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.modal-content input {
+    background-color: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    width: 90%;
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.modal-content button {
+    width: 50%;
+    display: block;
+    margin: 10px auto;
+    padding: 12px 10px;
+    background-color: rgba(24, 119, 242, 0.8);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+
+.modal-content button:hover {
+    background-color: rgba(22, 111, 229, 0.9);
 }
 
 #createSessionForm {
@@ -309,4 +342,71 @@ body {
     margin-top: 5px;
     font-style: italic;
     color: #666;
+}
+
+.confirm-dialog {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.confirm-dialog-content {
+    background-color: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    padding: 20px;
+    width: 80%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.confirm-dialog-content p {
+    margin-bottom: 20px;
+    color: #1c1e21;
+}
+
+.confirm-dialog-buttons {
+    display: flex;
+    justify-content: center;
+}
+
+.confirm-dialog-buttons button {
+    margin: 0 10px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+}
+
+.confirm-dialog-buttons button:first-child {
+    background-color: rgba(24, 119, 242, 0.8);
+    color: white;
+}
+
+.confirm-dialog-buttons button:last-child {
+    background-color: rgba(255, 255, 255, 0.5);
+    color: #1c1e21;
+}
+
+.confirm-dialog-buttons button:hover {
+    background-color: rgba(22, 111, 229, 0.9);
+}
+
+.confirm-dialog-buttons button:last-child:hover {
+    background-color: rgba(255, 255, 255, 0.7);
 }

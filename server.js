@@ -47,26 +47,31 @@ const StudySession = require('./models/StudySession');
 app.use(express.json());
 app.use(express.static('public'));
 app.use(cookieParser());
-app.use(cors());
-
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000', // Replace with your frontend URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Guest-ID'],
+  credentials: true,
+  optionsSuccessStatus: 200
+}));
 const authenticateToken = (req, res, next) => {
   const token = req.header('Authorization')?.split(' ')[1];
-  const guestId = req.cookies.guestId;
+  const guestId = req.cookies.guestId || req.header('X-Guest-ID');
 
   if (token) {
-    try {
-      const verified = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = { userId: verified.userId };
-      next();
-    } catch (error) {
-      console.error('Token verification error:', error);
-      return res.status(403).json({ message: 'Invalid token' });
-    }
+      try {
+          const verified = jwt.verify(token, process.env.JWT_SECRET);
+          req.user = { userId: verified.userId };
+          next();
+      } catch (error) {
+          console.error('Token verification error:', error);
+          return res.status(403).json({ message: 'Invalid token' });
+      }
   } else if (guestId) {
-    req.guestId = guestId;
-    next();
+      req.guestId = guestId;
+      next();
   } else {
-    res.status(401).json({ message: 'Access denied' });
+      res.status(401).json({ message: 'Access denied' });
   }
 };
 
@@ -125,47 +130,55 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-app.post('/api/guest-login', (req, res) => {
-  const guestId = Math.random().toString(36).substring(7);
-  res.cookie('guestId', guestId, { maxAge: 4 * 24 * 60 * 60 * 1000, httpOnly: true });
-  res.json({ message: 'Guest session started', guestId });
+app.post('/api/guest/login', (req, res) => {
+  try {
+      const guestId = Math.random().toString(36).substring(7);
+      res.cookie('guestId', guestId, { 
+          maxAge: 24 * 60 * 60 * 1000, // 24 hours
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+          sameSite: 'strict'
+      });
+      res.json({ message: 'Guest session started', guestId });
+  } catch (error) {
+      console.error('Error creating guest session:', error);
+      res.status(500).json({ message: 'Failed to create guest session', error: error.message });
+  }
 });
 
 app.get('/api/study/sessions', authenticateToken, async (req, res) => {
   try {
-    let sessions;
-    if (req.user) {
-      sessions = await StudySession.find({ userId: req.user.userId });
-    } else if (req.guestId) {
-      sessions = await StudySession.find({ guestId: req.guestId });
-    } else {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
-    console.log('Fetched sessions:', sessions);
-    res.json(sessions);
+      let sessions;
+      if (req.user) {
+          sessions = await StudySession.find({ userId: req.user.userId });
+      } else if (req.guestId) {
+          sessions = await StudySession.find({ guestId: req.guestId });
+      } else {
+          return res.status(401).json({ message: 'Unauthorized' });
+      }
+      res.json(sessions);
   } catch (error) {
-    console.error('Error fetching study sessions:', error);
-    res.status(500).json({ message: 'Error fetching study sessions', error: error.message });
+      console.error('Error fetching study sessions:', error);
+      res.status(500).json({ message: 'Error fetching study sessions', error: error.message });
   }
 });
 
 app.post('/api/study/sessions', authenticateToken, async (req, res) => {
   try {
-    const { name, subject } = req.body;
-    let session;
-    if (req.user) {
-      session = new StudySession({ name, subject, userId: req.user.userId });
-    } else if (req.guestId) {
-      session = new StudySession({ name, subject, guestId: req.guestId });
-    } else {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
-    await session.save();
-    console.log('Created new session:', session);
-    res.status(201).json(session);
+      const { name, subject } = req.body;
+      let session;
+      if (req.user) {
+          session = new StudySession({ name, subject, userId: req.user.userId });
+      } else if (req.guestId) {
+          session = new StudySession({ name, subject, guestId: req.guestId });
+      } else {
+          return res.status(401).json({ message: 'Unauthorized' });
+      }
+      await session.save();
+      res.status(201).json(session);
   } catch (error) {
-    console.error('Error creating study session:', error);
-    res.status(500).json({ message: 'Error creating study session', error: error.message });
+      console.error('Error creating study session:', error);
+      res.status(500).json({ message: 'Error creating study session', error: error.message });
   }
 });
 
