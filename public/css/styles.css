@@ -1,80 +1,134 @@
 body {
     font-family: Arial, sans-serif;
     background-color: #f0f2f5;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
     margin: 0;
+    padding: 0;
 }
 
 .container {
-    background-color: white;
+    max-width: 1200px;
+    margin: 0 auto;
     padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    text-align: center;
-    width: 300px;
+    background-color: white; /* Ensures the background color is white */
 }
 
-h1 {
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background-color: white;
+    border-bottom: 1px solid #ddd;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 24px;
     color: #1877f2;
-    font-size: 42px;
-    margin-bottom: 10px;
+}
+
+.header img {
+    height: 40px;
+    margin-right: 10px;
+}
+
+.user-info {
+    text-align: right;
+}
+
+.user-info p {
+    margin: 0;
+    color: #1c1e21;
+}
+
+.nav-buttons {
+    display: flex;
+    align-items: center;
+}
+
+.nav-buttons button {
+    background-color: white;
+    border: none;
+    color: #1877f2;
+    padding: 10px;
+    margin: 0 5px;
+    cursor: pointer;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+}
+
+.nav-buttons button:hover {
+    background-color: #f0f2f5;
+}
+
+.main-content {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-top: 20px;
 }
 
 h2 {
     color: #1c1e21;
-    font-size: 24px;
-    margin-bottom: 20px;
-}
-
-input {
-    width: 100%;
-    padding: 12px;
-    margin-bottom: 10px;
-    border: 1px solid #dddfe2;
-    border-radius: 6px;
-    box-sizing: border-box;
+    border-bottom: 1px solid #dadde1;
+    padding-bottom: 10px;
 }
 
 button {
-    width: 100%;
-    padding: 12px;
-    margin-bottom: 10px;
-    border: none;
-    border-radius: 6px;
-    color: white;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-}
-
-button[type="submit"] {
     background-color: #1877f2;
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    margin: 10px 0;
+    cursor: pointer;
+    border-radius: 5px;
 }
 
-button[type="submit"]:hover {
+button:hover {
     background-color: #166fe5;
 }
 
-#guestLogin {
-    background-color: #42b72a;
+input[type="text"], input[type="file"] {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #dddfe2;
+    border-radius: 5px;
 }
 
-#guestLogin:hover {
-    background-color: #36a420;
+.session-item {
+    background-color: #f9f9f9;
+    border: 1px solid #dadde1;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 15px;
 }
 
-a {
+.session-item h4 {
+    margin: 0 0 10px 0;
     color: #1877f2;
-    text-decoration: none;
-    display: block;
-    margin-bottom: 10px;
 }
 
-a:hover {
-    text-decoration: underline;
+.session-item p {
+    margin: 5px 0;
+}
+
+.session-item button, .session-item a {
+    background-color: #1877f2;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    margin-right: 5px;
+    cursor: pointer;
+    border-radius: 3px;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.session-item button:hover, .session-item a:hover {
+    background-color: #166fe5;
 }
 
 .modal {
@@ -95,41 +149,60 @@ a:hover {
     padding: 20px;
     border: 1px solid #888;
     width: 80%;
-    max-width: 400px;
+    max-width: 500px;
     border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
-#resetPasswordForm, #otpForm {
-    display: flex;
-    flex-direction: column;
-}
-
-#resetPasswordForm input, #otpForm input {
-    margin-bottom: 10px;
-}
-
-#resetPasswordForm button, #otpForm button {
-    background-color: #1877f2;
-    color: white;
-    border: none;
-    padding: 10px;
-    border-radius: 5px;
-    cursor: pointer;
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
     font-weight: bold;
+    cursor: pointer;
 }
 
-#resetPasswordForm button:hover, #otpForm button:hover {
-    background-color: #166fe5;
+.close:hover,
+.close:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
 }
 
-@media (max-width: 480px) {
+#contentArea {
+    margin-top: 20px;
+}
+
+.question {
+    background-color: #f9f9f9;
+    border: 1px solid #dadde1;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.answer {
+    margin-top: 10px;
+    font-weight: bold;
+    color: #1877f2;
+}
+
+@media (max-width: 768px) {
     .container {
-        width: 90%;
+        padding: 10px;
     }
-    
+
     .modal-content {
         width: 90%;
     }
 }
-
+@media (min-width: 769px) {
+    .container {
+      padding: 40px;
+    }
+  }
+  .container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px; /* Increased padding */
+  background-color: white;
+}

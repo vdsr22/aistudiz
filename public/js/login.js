@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const loginForm = document.getElementById('loginForm');
     const guestLoginBtn = document.getElementById('guestLogin');
     const forgotPasswordLink = document.getElementById('forgotPassword');
@@ -8,9 +8,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeBtn = document.querySelector('.close');
 
     // Initialize EmailJS
-    (function() {
-        emailjs.init("azxlenxRR4vHf5C8Z"); // Your EmailJS user ID
-    })();
+    try {
+        const response = await fetch('/api/email-config');
+        const config = await response.json();
+        emailjs.init(config.EMAILJS_USER_ID);
+        window.EMAILJS_SERVICE_ID = config.EMAILJS_SERVICE_ID;
+        window.EMAILJS_TEMPLATE_ID = config.EMAILJS_TEMPLATE_ID;
+    } catch (error) {
+        console.error('Failed to initialize EmailJS:', error);
+    }
 
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -68,21 +74,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const email = document.getElementById('resetEmail').value;
         
         try {
-            const otp = Math.floor(100000 + Math.random() * 900000);
-            
-            // Send OTP via EmailJS
-            const emailParams = {
-                to_email: email,
-                otp: otp.toString()
-            };
+            const response = await fetch('/api/send-reset-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
 
-            await emailjs.send("service_og1mzc4", "template_u03roix", emailParams);
+            const data = await response.json();
 
-            alert('OTP sent to your email');
-            resetPasswordForm.style.display = 'none';
-            otpForm.style.display = 'block';
-            localStorage.setItem('resetEmail', email);
-            localStorage.setItem('resetOTP', otp.toString());
+            if (response.ok) {
+                // Send email using EmailJS
+                const emailParams = {
+                    to_email: email,
+                    otp: data.otp
+                };
+
+                await emailjs.send(window.EMAILJS_SERVICE_ID, window.EMAILJS_TEMPLATE_ID, emailParams);
+
+                alert('OTP sent to your email');
+                resetPasswordForm.style.display = 'none';
+                otpForm.style.display = 'block';
+                localStorage.setItem('resetEmail', email);
+            } else {
+                alert(data.error || 'Failed to generate OTP. Please try again.');
+            }
         } catch (error) {
             console.error('Error:', error);
             alert('Failed to send OTP. Please try again.');
@@ -93,32 +108,37 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const enteredOTP = document.getElementById('otp').value;
         const newPassword = document.getElementById('newPassword').value;
-        const storedOTP = localStorage.getItem('resetOTP');
+        const confirmPassword = document.getElementById('confirmPassword').value;
         const email = localStorage.getItem('resetEmail');
 
-        if (enteredOTP === storedOTP) {
-            try {
-                const response = await fetch('/api/reset-password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, newPassword })
-                });
+        if (newPassword !== confirmPassword) {
+            alert("Passwords don't match. Please try again.");
+            return;
+        }
 
-                if (response.ok) {
-                    alert('Password reset successfully');
-                    resetPasswordModal.style.display = 'none';
-                    localStorage.removeItem('resetOTP');
-                    localStorage.removeItem('resetEmail');
-                } else {
-                    const data = await response.json();
-                    alert(data.message);
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again.');
+        try {
+            const response = await fetch('/api/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    email, 
+                    otp: enteredOTP, 
+                    newPassword,
+                    confirmNewPassword: confirmPassword
+                })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                alert('Password reset successfully');
+                resetPasswordModal.style.display = 'none';
+                localStorage.removeItem('resetEmail');
+            } else {
+                alert(data.error || 'An error occurred. Please try again.');
             }
-        } else {
-            alert('Invalid OTP');
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred. Please check the console and try again.');
         }
     });
 

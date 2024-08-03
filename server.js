@@ -1,4 +1,5 @@
 require('dotenv').config();
+
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
@@ -13,6 +14,7 @@ const { OpenAI } = require("openai");
 const PDFParser = require('pdf-parse');
 const mammoth = require("mammoth");
 const cors = require('cors');
+const emailjs = require('emailjs-com');
 
 const app = express();
 
@@ -223,6 +225,61 @@ app.delete('/api/study/sessions/:id', authenticateToken, async (req, res) => {
   }
 });
 
+
+
+app.post('/api/send-reset-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const otp = user.generatePasswordResetOTP();
+    await user.save();
+
+    // TODO: Implement actual email sending here
+    // For now, we'll just log the OTP to the console
+    console.log(`OTP for ${email}: ${otp}`);
+
+    // In a production environment, you would send an email here
+    // For development, we'll just send the OTP in the response
+    res.json({ message: 'OTP sent successfully', otp });
+  } catch (error) {
+    console.error('Error sending OTP:', error);
+    res.status(500).json({ error: 'Error sending OTP', details: error.message });
+  }
+});
+
+
+app.post('/api/reset-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!user.verifyPasswordResetOTP(otp)) {
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+
+    // Reset the password
+    user.password = newPassword;
+    user.passwordResetOTP = undefined;
+    user.passwordResetOTPExpires = undefined;
+    await user.save();
+
+    res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    res.status(500).json({ error: 'Error resetting password', details: error.message });
+  }
+});
+
+
 app.post('/api/study/sessions/:id/upload', authenticateToken, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -309,6 +366,14 @@ app.post('/api/study/sessions/:id/upload', authenticateToken, upload.single('fil
     console.error('Error processing file:', error);
     res.status(500).json({ message: 'Error processing file', error: error.message });
   }
+});
+
+app.get('/api/email-config', (req, res) => {
+  res.json({
+      EMAILJS_USER_ID: process.env.EMAILJS_USER_ID,
+      EMAILJS_SERVICE_ID: process.env.EMAILJS_SERVICE_ID,
+      EMAILJS_TEMPLATE_ID: process.env.EMAILJS_TEMPLATE_ID
+  });
 });
 
 app.get('/api/study/sessions/:id/data', authenticateToken, async (req, res) => {
