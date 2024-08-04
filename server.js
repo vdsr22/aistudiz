@@ -10,7 +10,7 @@ const multer = require('multer');
 const { GridFSBucket } = require('mongodb');
 const crypto = require('crypto');
 const stream = require('stream');
-const { OpenAI } = require("openai");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 const PDFParser = require('pdf-parse');
 const mammoth = require("mammoth");
 const cors = require('cors');
@@ -463,41 +463,52 @@ app.get('/api/study/sessions/:id/questions', authenticateToken, async (req, res)
 });
 
 async function processWithAI(content) {
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
   try {
-    const summaryResponse = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {role: "system", content: "You are a helpful assistant that summarizes text."},
-        {role: "user", content: `Summarize the following text:\n\n${content}`}
-      ],
-      max_tokens: 150,
-      temperature: 0.3,
-    });
-    const summary = summaryResponse.choices[0].message.content.trim();
+    // Generate summary
+    const summaryPrompt = `Summarize the following text in about 250 words:
 
-    const questionsResponse = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {role: "system", content: "You are a helpful assistant that generates multiple-choice questions."},
-        {role: "user", content: `Generate 5 multiple-choice questions based on the following text:\n\n${content}\n\nFormat each question as follows:\nQuestion: [Question text]\nA) [Option A]\nB) [Option B]\nC) [Option C]\nD) [Option D]\nAnswer: [Correct option letter]`}
-      ],
-      max_tokens: 500,
-      temperature: 0.3,
-    });
-    const questionsText = questionsResponse.choices[0].message.content.trim();
+${content}
 
-    const questions = questionsText.split('\n\n').map(q => {
-      const [questionLine, ...rest] = q.split('\n');
-      const question = questionLine.replace('Question: ', '');
-      const options = rest.slice(0, -1).map(o => o.slice(3));
-      const answer = rest[rest.length - 1].replace('Answer: ', '');
+Provide a concise and informative summary that captures the main points and key ideas of the text.`;
+
+    const summaryResult = await model.generateContent(summaryPrompt);
+    const summary = summaryResult.response.text();
+
+    // Generate questions
+    const questionsPrompt = `Based on the following text, generate 15-20 multiple-choice questions:
+
+${content}
+
+For each question, provide:
+1. The question text
+2. Four answer options (A, B, C, D)
+3. The correct answer
+
+Format each question as follows:
+Q1. [Question text]
+A) [Option A]
+B) [Option B]
+C) [Option C]
+D) [Option D]
+Correct Answer: [A/B/C/D]
+
+Ensure that the questions cover various aspects of the text and test different levels of understanding.`;
+
+    const questionsResult = await model.generateContent(questionsPrompt);
+    const questionsText = questionsResult.response.text();
+
+    // Parse the questions
+    const questions = questionsText.split(/Q\d+\./).slice(1).map(q => {
+      const [questionText, ...options] = q.trim().split('\n');
+      const question = questionText.trim();
+      const parsedOptions = options.slice(0, 4).map(o => o.slice(3).trim());
+      const answer = options[4].replace('Correct Answer:', '').trim();
       return {
         question,
-        options,
+        options: parsedOptions,
         answer
       };
     });
