@@ -467,12 +467,8 @@ async function processWithAI(content) {
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
   try {
-    const wordCount = content.split(/\s+/).length;
-    const summaryLength = Math.floor(wordCount * (0.25 + Math.random() * 0.1)); // 25-35% of original length
-    const questionCount = Math.max(Math.min(Math.floor(wordCount / 30), 50), 20); // More questions for bigger files, less for smaller files
-
     // Generate summary
-    const summaryPrompt = `Summarize the following text in about ${summaryLength} words:
+    const summaryPrompt = `Summarize the following text in about 250 words:
 
 ${content}
 
@@ -482,7 +478,7 @@ Provide a concise and informative summary that captures the main points and key 
     const summary = summaryResult.response.text();
 
     // Generate questions
-    const questionsPrompt = `Based on the following text, generate ${questionCount} multiple-choice questions that cover all topics in the content:
+    const questionsPrompt = `Based on the following text, generate 15-20 multiple-choice questions:
 
 ${content}
 
@@ -499,7 +495,7 @@ C) [Option C]
 D) [Option D]
 Correct Answer: [A/B/C/D]
 
-Ensure that the questions test different levels of understanding and are distributed across all topics in the content.`;
+Ensure that the questions cover various aspects of the text and test different levels of understanding.`;
 
     const questionsResult = await model.generateContent(questionsPrompt);
     const questionsText = questionsResult.response.text();
@@ -516,8 +512,6 @@ Ensure that the questions test different levels of understanding and are distrib
         answer
       };
     });
-
-    console.log(`Generated summary of ${summary.split(/\s+/).length} words and ${questions.length} questions for content of ${wordCount} words.`);
 
     return { summary, questions };
   } catch (error) {

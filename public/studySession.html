@@ -7,6 +7,32 @@
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/index-styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        .processing-indicator {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .processing-indicator i {
+            margin-right: 10px;
+        }
+        .question {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .pagination {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .pagination button {
+            margin: 0 10px;
+        }
+    </style>
 </head>
 <body>
     <div class="dashboard-container">
@@ -18,9 +44,7 @@
                 <button id="logoutBtn" class="icon-button"><i class="fas fa-sign-out-alt"></i></button>
             </div>
         </div>
-        
         <div id="userInfo"></div>
-
         <div class="main-content">
             <h2>Study Session</h2>
             <form id="fileUploadForm">
@@ -29,15 +53,17 @@
                     <span id="fileName"></span>
                 </div>
                 <div class="button-row">
-                    <button type="button" id="replaceFileBtn">Replace File</button>
-                    <button type="button" id="summaryBtn">View Summary</button>
-                    <button type="button" id="questionsBtn">View Questions</button>
+                    <button type="button" id="uploadFileBtn">Upload File</button>
+                    <button type="button" id="summaryBtn" style="display: none;">View Summary</button>
+                    <button type="button" id="questionsBtn" style="display: none;">View Questions</button>
+                </div>
+                <div class="processing-indicator">
+                    <i class="fas fa-spinner fa-spin"></i> Processing file...
                 </div>
             </form>
             <div id="contentArea"></div>
         </div>
     </div>
-
     <script src="js/studySession.js"></script>
     <script src="js/account.js"></script>
 </body>
