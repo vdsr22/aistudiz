@@ -50,6 +50,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function deleteAllStudySessions() {
+        try {
+            const response = await fetch('/api/study/sessions', {
+                method: 'DELETE',
+                headers: {
+                    'X-Guest-ID': guestId
+                }
+            });
+            if (!response.ok) {
+                throw new Error('Failed to delete study sessions');
+            }
+        } catch (error) {
+            console.error('Error deleting sessions:', error);
+        }
+    }
+
     async function createStudySession(sessionData) {
         try {
             const response = await fetch('/api/study/sessions', {
@@ -89,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             sessionList.appendChild(sessionElement);
         });
-    
+
         // Add event listeners for edit and delete buttons
         document.querySelectorAll('.edit-session').forEach(button => {
             button.addEventListener('click', handleEditSession);
@@ -171,6 +187,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    backToLoginBtn.addEventListener('click', async () => {
+        const confirmLogout = confirm("Logging out will delete all the study sessions. Are you sure you want to logout?");
+        if (confirmLogout) {
+            await deleteAllStudySessions(); // Delete all sessions
+            document.cookie = 'guestId=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+            localStorage.removeItem('guestId');
+            window.location.href = 'login.html';
+        }
+    });
+
     createSessionBtn.addEventListener('click', () => {
         createSessionModal.style.display = 'block';
     });
@@ -187,12 +213,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             alert('Failed to create study session');
         }
-    });
-
-    backToLoginBtn.addEventListener('click', () => {
-        document.cookie = 'guestId=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-        localStorage.removeItem('guestId');
-        window.location.href = 'login.html';
     });
 
     closeBtn.addEventListener('click', () => {

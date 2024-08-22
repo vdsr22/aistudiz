@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const backBtn = document.getElementById('backBtn');
     const homeBtn = document.getElementById('homeBtn');
     const userInfo = document.getElementById('userInfo');
+    const loadingIndicator = document.getElementById('loadingIndicator'); // Get loading indicator
 
     const sessionId = new URLSearchParams(window.location.search).get('id');
     const guestId = getCookie('guestId');
@@ -90,6 +91,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const formData = new FormData();
         formData.append('file', file);
 
+        // Show loading indicator and hide upload button
+        loadingIndicator.style.display = 'block';
+        uploadFileBtn.style.display = 'none';
+
         try {
             const response = await fetch(`/api/study/sessions/${sessionId}/upload`, {
                 method: 'POST',
@@ -110,6 +115,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Error:', error);
             alert('An error occurred while uploading the file');
+        } finally {
+            // Hide loading indicator after processing
+            loadingIndicator.style.display = 'none';
         }
     });
 
